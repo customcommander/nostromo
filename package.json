@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "name": "nostromo",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon agent/run.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "xstate": "^5.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
