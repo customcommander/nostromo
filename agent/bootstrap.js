@@ -28,7 +28,6 @@ const src = setup({
       for await (const system of systems) {
         response[system] = await get_system(token, {system});
       }
-      console.log('wat');
       return response;
     })
   },
