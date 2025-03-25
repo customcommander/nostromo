@@ -1,8 +1,14 @@
 import { fromPromise } from "xstate";
 
-// TODO: automatically paginate
-async function get(endpoint, token) {
-  const url = `https://api.spacetraders.io/v2${endpoint}`;
+function pause() {
+  return new Promise(resolve => {
+    setTimeout(() => resolve(true), 500);
+  });
+}
+
+async function _get(endpoint, token, page, limit) {
+  const pagination = page && limit ? `?page=${page}&limit=${limit}` : '';
+  const url = `https://api.spacetraders.io/v2${endpoint}${pagination}`;
   const response = await fetch(url, {
     headers: {
       authorization: `Bearer ${token}`
@@ -14,34 +20,72 @@ async function get(endpoint, token) {
   }
 
   const body = await response.json();
-  return Array.isArray(body.data) ? body.data : [body.data];
+  return body;
 }
 
-function as_actor(endpoint, cb) {
+async function _paginate(endpoint, token) {
+  let data = [];
+  let page;
+  let limit;
+  let total;
+  let more = true;
+
+  while (more) {
+    const body = await _get(endpoint, token, page, limit);
+
+    data = data.concat(body.data);
+    
+    if (!body.meta) {
+      break;
+    }
+
+    page  ??= body.meta.page;
+    limit ??= body.meta.limit;
+    total ??= body.meta.total;
+
+    more = page * limit < total;
+
+    if (more) {
+      page++;
+      await pause();
+    }
+  }
+
+  return data;
+}
+
+export function as_actor(fn) {
   return fromPromise(async ({input}) => {
-    const response = await get(endpoint, input.token);
-    return cb(response);
+    const {token, ...params} = input;
+    const response = await fn(token, params);
+    return response;
   });
 }
 
-export const get_agent = as_actor('/my/agent', ([agent]) => ({
-  agent: agent.symbol,
-  headquarters: agent.headquarters,
-  credits: agent.credits
-}));
+// '/foo/:x/:y' + {x: 'bar', y: 'baz'} -> '/foo/bar/baz'
+function resolve(endpoint, params) {
+  const entries = Object.entries(params);
+  return entries.reduce((str, [k, v]) => str.replace(`:${k}`, v), endpoint);
+}
 
-export const get_contracts = as_actor('/my/contracts', ([contract]) => ({
-  id: contract.id,
-  accepted: contract.accepted,
-  acceptBefore: contract.deadlineToAccept,
-  deadline: contract.terms.deadline,
-  terms: contract.terms.deliver.map(d => ({
-    deliver: d.tradeSymbol,
-    to: d.destinationSymbol,
-    fulfilled: d.unitsFulfilled,
-    required: d.unitsRequired
-  }))
-}));
+function get(endpoint, cb) {
+  return async function (token, params) {
+    const resolved = resolve(endpoint, params);
+    const response = await _paginate(resolved, token);
+    return cb(response);
+  };
+}
 
-export const get_ships = as_actor('/my/ships', data => data);
+function unwrap(xs) {
+  return xs[0];
+}
+
+function identity(x) {
+  return x;
+}
+
+export const get_agent     = get('/my/agent', unwrap);
+export const get_contracts = get('/my/contracts', unwrap);
+export const get_ships     = get('/my/ships', identity);
+export const get_system    = get('/systems/:system/waypoints', identity);
 

@@ -1,4 +1,8 @@
 import {
+  writeFileSync
+} from 'node:fs';
+
+import {
   assign,
   createActor,
   createMachine,
@@ -7,7 +11,6 @@ import {
   setup,
 } from "xstate";
 
-import loader from './loader.js';
 import bootstrap from './bootstrap.js';
 import shipActor from './ship.js';
 
@@ -16,10 +19,11 @@ const src = setup({
     bootstrap,
   },
   actions: {
-    'register-agent': assign(({event}) => {
-      const {agent} = event;
-      return agent;
+    'register': assign(({event}, params) => {
+      const {entity} = params;
+      return {[entity]: event[entity]};
     }),
+
     'register-ships': enqueueActions(({enqueue, event, context}) => {
       for (let ship of event.ships) {
         enqueue.assign(({context: ctx}) => {
@@ -55,34 +59,39 @@ const machine = src.createMachine({
         src: 'bootstrap',
         input: ({context}) => ({token: context.token}),
         onDone: {
-          target: 'bar'
+          target: 'loop'
         }
       }
     },
-    bar: {
-      entry: ({context}) => console.log('this is bar!', context),
+    loop: {
+      entry: ({context}) => {
+        console.log('agent is alive');
+        writeFileSync('../context.json', JSON.stringify(context, null, 2));
+      },
       type: 'final'
     },
     stop: {
       type: 'final',
-      entry: () => console.log('stopped!')
     },
     error: {
       type: 'final',
-      entry: log('error. quit.')
     }
   },
   on: {
     interrupt: {
-      actions: () => console.log('got interrupt...'),
-      target: '.stop'
+      target: '.stop',
     },
-    'register.agent': {
-      actions: 'register-agent'
+    'register.*': {
+      actions: {
+        type: 'register',
+        params: ({event}) => ({
+          entity: event.type.split('.')[1]
+        })
+      }
     },
     'register.ships': {
       actions: 'register-ships'
-    }
+    },
   }
 });
 
