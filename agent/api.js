@@ -1,3 +1,4 @@
+import { checkServerIdentity } from "node:tls";
 import { fromPromise } from "xstate";
 
 function pause() {
@@ -68,13 +69,6 @@ function resolve(endpoint, params) {
   return entries.reduce((str, [k, v]) => str.replace(`:${k}`, v), endpoint);
 }
 
-function get(endpoint, cb) {
-  return async function (token, params) {
-    const resolved = resolve(endpoint, params);
-    const response = await _paginate(resolved, token);
-    return cb(response);
-  };
-}
 
 function unwrap(xs) {
   return xs[0];
@@ -84,8 +78,16 @@ function identity(x) {
   return x;
 }
 
+function get(endpoint, cb = identity) {
+  return async function (token, params) {
+    const resolved = resolve(endpoint, params);
+    const response = await _paginate(resolved, token);
+    return cb(response);
+  };
+}
+
 export const get_agent     = get('/my/agent', unwrap);
 export const get_contracts = get('/my/contracts', unwrap);
-export const get_ships     = get('/my/ships', identity);
-export const get_system    = get('/systems/:system/waypoints', identity);
+export const get_ships     = get('/my/ships');
+export const get_system    = get('/systems/:system/waypoints');
 
