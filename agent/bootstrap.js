@@ -31,6 +31,7 @@ const src = setup({
       return response;
     })
   },
+
   actions: {
     'register': sendTo(
       ({system}) => system.get('nostromo.ai'),
@@ -97,6 +98,7 @@ export default src.createMachine({
       }
     },
     'load-ships': {
+      entry: log('loading ships...'),
       invoke: {
         src: `ships-loader`,
         input: ({context}) => ({token: context.token}),
@@ -120,6 +122,7 @@ export default src.createMachine({
       }
     },
     'load-systems': {
+      entry: log('loading systems...'),
       invoke: {
         src: 'systems-loader',
         input: ({context}) => ({
