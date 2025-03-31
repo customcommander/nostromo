@@ -60,6 +60,7 @@ export default src.createMachine({
   initial: 'load-agent',
   states: {
     'load-agent': {
+      entry: log('loading agent...'),
       invoke: {
         src: 'agent-loader',
         input: ({context}) => ({token: context.token}),
@@ -83,6 +84,7 @@ export default src.createMachine({
       }
     },
     'load-contracts': {
+      entry: log('loading contracts...'),
       invoke: {
         src: `contracts-loader`,
         input: ({context}) => ({token: context.token}),
