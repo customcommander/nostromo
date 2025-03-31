@@ -1,5 +1,6 @@
 {
   "events": {
+    "start": "sleep 1 && curl -s -o /dev/null http://localhost:8000",
     "restart": "sleep 1 && curl -s -o /dev/null http://localhost:8000"
   }
 }

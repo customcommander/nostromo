@@ -3,13 +3,16 @@ import {
 } from 'node:fs';
 
 import {
+  resolve,
+} from 'node:path'
+
+import {
   assign,
   createActor,
-  createMachine,
   enqueueActions,
   log,
   setup,
-} from "xstate";
+} from 'xstate';
 
 import bootstrap from './bootstrap.js';
 import shipActor from './ship.js';
@@ -25,17 +28,13 @@ const src = setup({
     }),
 
     'register-ships': enqueueActions(({enqueue, event, context}) => {
+      enqueue.assign(() => {
+        return {
+          ships: event.ships
+        }
+      });
+
       for (let ship of event.ships) {
-        enqueue.assign(({context: ctx}) => {
-          const {ships = []} = ctx;
-          return {
-            ships: ships.concat({
-              symbol: ship.symbol,
-              status: ship.nav.status,
-              location: ship.nav.waypointSymbol
-            })
-          }
-        });
         enqueue.spawnChild(shipActor, {
           systemId: ship.symbol,
           input: {
@@ -48,6 +47,7 @@ const src = setup({
   }
 });
 
+// 12
 const machine = src.createMachine({
   context: ({input}) => ({
     token: input.token
@@ -63,10 +63,11 @@ const machine = src.createMachine({
         }
       }
     },
+
     loop: {
       entry: ({context}) => {
         console.log('agent is alive');
-        writeFileSync('../context.json', JSON.stringify(context, null, 2));
+        writeFileSync(resolve(import.meta.dirname, '..', 'context.json'), JSON.stringify(context, null, 2));
       },
       type: 'final'
     },
@@ -79,6 +80,7 @@ const machine = src.createMachine({
   },
   on: {
     interrupt: {
+      actions: log('restarting machine...'),
       target: '.stop',
     },
     'register.*': {
