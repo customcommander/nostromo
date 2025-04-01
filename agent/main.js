@@ -60,6 +60,9 @@ const machine = src.createMachine({
         input: ({context}) => ({token: context.token}),
         onDone: {
           target: 'loop'
+        },
+        onError: {
+          target: 'error'
         }
       }
     },
@@ -69,13 +72,13 @@ const machine = src.createMachine({
         console.log('agent is alive');
         writeFileSync(resolve(import.meta.dirname, '..', 'context.json'), JSON.stringify(context, null, 2));
       },
-      type: 'final'
     },
     stop: {
       type: 'final',
     },
     error: {
       type: 'final',
+      entry: log(({event}) => `Error: ${event.error.message}. Quit.`)
     }
   },
   on: {
